@@ -14,20 +14,15 @@ const Player: React.FC<PlayerProps> = ({ state, isHostOrModerator }) => {
   const isSyncing = useRef(false); // Flag to prevent infinite loop of sync events
 
   useEffect(() => {
-    // We load the YouTube IFrame API script dynamically
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    const initPlayer = () => {
+      if (playerRef.current) return; // Already initialized
 
-    // This global function is called by the YouTube API when it's ready
-    (window as any).onYouTubeIframeAPIReady = () => {
       playerRef.current = new (window as any).YT.Player('youtube-player', {
         videoId: state.videoId,
         playerVars: {
           autoplay: 0,
-          controls: isHostOrModerator ? 1 : 0, // Only show controls for authorized users
-          disablekb: isHostOrModerator ? 0 : 1, // Disable keyboard shortcuts for viewers
+          controls: isHostOrModerator ? 1 : 0,
+          disablekb: isHostOrModerator ? 0 : 1,
           rel: 0,
           modestbranding: 1
         },
@@ -37,9 +32,27 @@ const Player: React.FC<PlayerProps> = ({ state, isHostOrModerator }) => {
       });
     };
 
+    if (!(window as any).YT) {
+      // API not loaded yet, set up the callback and load the script
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+
+      (window as any).onYouTubeIframeAPIReady = initPlayer;
+    } else if (!(window as any).YT.Player) {
+      // API script is loading but YT.Player is not yet ready
+      (window as any).onYouTubeIframeAPIReady = initPlayer;
+    } else {
+      // API is already fully loaded
+      initPlayer();
+    }
+
     return () => {
-      // Cleanup: delete the global function so it doesn't leak memory
-      (window as any).onYouTubeIframeAPIReady = null;
+      // Clean up the global callback if it hasn't fired yet
+      if ((window as any).onYouTubeIframeAPIReady === initPlayer) {
+        (window as any).onYouTubeIframeAPIReady = null;
+      }
     };
   }, []);
 
