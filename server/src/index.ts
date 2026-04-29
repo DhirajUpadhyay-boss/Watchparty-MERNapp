@@ -35,11 +35,11 @@ io.on('connection', (socket) => {
   // When someone tries to join a room
   socket.on('join_room', ({ roomId, username }: { roomId: string, username: string }) => {
     let room = rooms.get(roomId);
-    let role: Role = 'Participant';
+    let role: Role = Role.Participant;
 
     if (!room) {
       // If the room doesn't exist, the first person to join is automatically the Host!
-      role = 'Host';
+      role = Role.Host;
       room = {
         id: roomId,
         users: [],
@@ -197,13 +197,13 @@ function handleUserLeave(socketId: string) {
       room.users = room.users.filter(u => u.id !== socketId);
       
       // If the Host leaves, we need to pick a new one so the party continues!
-      if (user.role === 'Host' && room.users.length > 0) {
+      if (user.role === Role.Host && room.users.length > 0) {
         const newHost = room.users[0];
-        newHost.role = 'Host';
+        newHost.role = Role.Host;
         io.to(room.id).emit('role_assigned', {
           userId: newHost.id,
           username: newHost.username,
-          role: 'Host',
+          role: Role.Host,
           participants: room.users
         });
       }
